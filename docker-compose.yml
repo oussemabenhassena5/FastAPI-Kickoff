@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16rc1-alpine3.18
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    ports:
+      - "5433:${POSTGRES_PORT}"
+
+
+  backend:
+    build: ./backend
+    env_file:
+      - ./.env
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload   
+    ports:
+      - ${DEV_PORT}:${DEV_PORT}
+    volumes:
+      - ./backend:/app/
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

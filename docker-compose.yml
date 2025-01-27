@@ -1,5 +1,5 @@
 services:
-  db:
+  database:
     image: postgres:16rc1-alpine3.18
     volumes:
       - postgres_data:/var/lib/postgresql/data/
@@ -9,19 +9,26 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
     ports:
       - "5433:${POSTGRES_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 
   backend:
     build: ./backend
     env_file:
       - ./.env
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload   
+    command: uvicorn src.main:app --host 0.0.0.0 --port ${DEV_PORT} --reload   
     ports:
       - ${DEV_PORT}:${DEV_PORT}
     volumes:
       - ./backend:/app/
     depends_on:
-      - db
+      database:
+        condition: service_healthy
+
 
 volumes:
   postgres_data:

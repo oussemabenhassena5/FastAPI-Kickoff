@@ -2,24 +2,31 @@ from sqlmodel import Session, create_engine, select
 from src import crud
 from src.config.settings import settings
 from src.models.user import User, UserCreate
+import time
 
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
+
+# Retry mechanism for database connection
+def create_engine_with_retry(database_uri: str, retries: int = 5, delay: int = 2):
+    for i in range(retries):
+        try:
+            engine = create_engine(database_uri)
+            with engine.connect():
+                print("Database connection successful!")
+                return engine
+        except Exception as e:
+            print(f"Attempt {i + 1} failed: {e}")
+            if i < retries - 1:
+                time.sleep(delay)
+            else:
+                raise Exception(
+                    "Failed to connect to the database after multiple attempts."
+                )
 
 
-# make sure all SQLModel models are imported (app.models) before initializing DB
-# otherwise, SQLModel might fail to initialize relationships properly
-# for more details: https://github.com/fastapi/full-stack-fastapi-template/issues/28
+engine = create_engine_with_retry(str(settings.SQLALCHEMY_DATABASE_URI))
 
 
 def init_db(session: Session) -> None:
-    # Tables should be created with Alembic migrations
-    # But if you don't want to use migrations, create
-    # the tables un-commenting the next lines
-    # from sqlmodel import SQLModel
-
-    # This works because the models are already imported and registered from app.models
-    # SQLModel.metadata.create_all(engine)
-
     user = session.exec(
         select(User).where(User.email == settings.FIRST_SUPERUSER)
     ).first()
